@@ -8,6 +8,7 @@
   :ggang:     대형 이벤트(Level 5) 강조
   :yolsimhi:  모니터링/브리핑 헤더/열심히 문구
 """
+import random
 from datetime import datetime, timezone, timedelta
 from models import StockEvent
 import emojis as em
@@ -17,6 +18,16 @@ KST = timezone(timedelta(hours=9))
 _COLOR_POSITIVE = 0x00b894
 _COLOR_NEGATIVE = 0xe17055
 _COLOR_NEUTRAL  = 0x636e72
+
+_JJOWAYO_LINES = [
+    "주식피키 바보 아니란 말이에요!",
+    "주식피키 진짜 열심히 봤단 말이에요!",
+    "주식피키 거짓말 안 해요!",
+    "주식피키 매일매일 지켜보고 있었단 말이에요!",
+    "주식피키 이거 그냥 지나치면 안 돼요!",
+    "주식피키 믿어줘요! 정말이에요!",
+    "주식피키 무시하면 안 된단 말이에요!",
+]
 
 
 def _stars(score: int) -> str:
@@ -87,7 +98,7 @@ def format_alert(event: StockEvent) -> dict:
     description = (
         f"{_opening(event)}\n"
         f"{event.summary}\n"
-        f"주식피키 바보 아니란 말이에요!\n\n"
+        f"{random.choice(_JJOWAYO_LINES)}\n\n"
         f"중요도: {_stars(event.market_impact_score)} | "
         f"긴급도: {_stars(event.urgency_score)} | "
         f"신뢰도: {_stars(event.credibility_score)}\n\n"
