@@ -43,14 +43,26 @@ class StockPickyBot(discord.Client):
 bot = StockPickyBot()
 
 
+def _ticker_line(icon: str, t: dict) -> str:
+    market = t.get("market", "US")
+    name   = t.get("name", "")
+    label  = f"{name}({t['ticker']})" if name else t["ticker"]
+    return f"{icon} **{label}** [{market}]"
+
+
 # ── /add ─────────────────────────────────────────────────────────────────────
 
 @bot.tree.command(name="add", description="관심 종목을 추가해요!")
-@app_commands.describe(ticker="종목 코드 (예: NVDA, 005930)", market="시장 (US 또는 KR, 기본값: US)")
+@app_commands.describe(
+    ticker="종목 코드 (예: NVDA, 005930)",
+    market="시장 (US 또는 KR, 기본값: US)",
+    name="회사명 — KR 종목은 필수! (예: 삼성전자, 카카오)",
+)
 async def cmd_add(
     interaction: discord.Interaction,
     ticker: str,
     market: str = "US",
+    name: str = "",
 ):
     await interaction.response.defer(ephemeral=True)
     try:
@@ -59,11 +71,19 @@ async def cmd_add(
             await interaction.followup.send("시장은 US 또는 KR만 돼요!", ephemeral=True)
             return
 
-        success = store.add_ticker(ticker.upper(), market)
+        if market == "KR" and not name:
+            await interaction.followup.send(
+                f"국장 종목은 회사명도 알려줘요!\n예: `/add {ticker} KR 삼성전자`",
+                ephemeral=True,
+            )
+            return
+
+        label = f"{name}({ticker.upper()})" if name else ticker.upper()
+        success = store.add_ticker(ticker.upper(), market, name)
         if success:
-            msg = f"쪼아요! **{ticker.upper()}** 추가됐어요! 이제 스톡피키가 열심히 볼게요!"
+            msg = f"쪼아요! **{label}** 추가됐어요! 이제 스톡피키가 열심히 볼게요!"
         else:
-            msg = f"스톡피키 이미 보고 있어요! **{ticker.upper()}** 이미 목록에 있단 말이에요!"
+            msg = f"스톡피키 이미 보고 있어요! **{label}** 이미 목록에 있단 말이에요!"
         await interaction.followup.send(msg, ephemeral=True)
     except Exception as e:
         logger.warning("/add 오류: %s", e)
@@ -144,15 +164,11 @@ async def cmd_list(interaction: discord.Interaction):
             paused = [t for t in tickers if t["is_active"] == 0]
 
             if active:
-                lines = "\n".join(
-                    f"🟢 **{t['ticker']}** ({t.get('market', 'US')})" for t in active
-                )
+                lines = "\n".join(_ticker_line("🟢", t) for t in active)
                 embed.add_field(name=f"감시 중 ({len(active)})", value=lines, inline=False)
 
             if paused:
-                lines = "\n".join(
-                    f"⏸️ **{t['ticker']}** ({t.get('market', 'US')})" for t in paused
-                )
+                lines = "\n".join(_ticker_line("⏸️", t) for t in paused)
                 embed.add_field(name=f"일시중단 ({len(paused)})", value=lines, inline=False)
 
         embed.set_footer(text=f"스톡피키 | 총 {len(tickers)}개 종목")

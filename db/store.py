@@ -30,25 +30,26 @@ def init_db(db_path: str = "stockpicky.db") -> None:
     conn = _get_conn(db_path)
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS watchlist (
-            id       INTEGER PRIMARY KEY AUTOINCREMENT,
-            ticker   TEXT NOT NULL COLLATE NOCASE,
-            market   TEXT NOT NULL DEFAULT 'US',
-            added_at TEXT NOT NULL,
+            id        INTEGER PRIMARY KEY AUTOINCREMENT,
+            ticker    TEXT NOT NULL COLLATE NOCASE,
+            market    TEXT NOT NULL DEFAULT 'US',
+            name      TEXT NOT NULL DEFAULT '',
+            added_at  TEXT NOT NULL,
             is_active INTEGER NOT NULL DEFAULT 1,
             UNIQUE(ticker COLLATE NOCASE)
         );
 
         CREATE TABLE IF NOT EXISTS events (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            ticker      TEXT NOT NULL,
-            event_type  TEXT NOT NULL,
-            title       TEXT,
-            source      TEXT,
-            url         TEXT,
-            raw_summary TEXT,
-            hash        TEXT UNIQUE,
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            ticker       TEXT NOT NULL,
+            event_type   TEXT NOT NULL,
+            title        TEXT,
+            source       TEXT,
+            url          TEXT,
+            raw_summary  TEXT,
+            hash         TEXT UNIQUE,
             collected_at TEXT,
-            is_sent     INTEGER NOT NULL DEFAULT 0
+            is_sent      INTEGER NOT NULL DEFAULT 0
         );
 
         CREATE TABLE IF NOT EXISTS analysis (
@@ -83,21 +84,32 @@ def init_db(db_path: str = "stockpicky.db") -> None:
         );
     """)
     conn.commit()
+
+    # 기존 DB 마이그레이션: name 컬럼 없으면 추가
+    try:
+        conn.execute("ALTER TABLE watchlist ADD COLUMN name TEXT NOT NULL DEFAULT ''")
+        conn.commit()
+        logger.info("watchlist.name 컬럼 마이그레이션 완료")
+    except sqlite3.OperationalError:
+        pass  # 이미 있음
+
     logger.info("DB 초기화 완료: %s", db_path)
 
 
 # ── watchlist CRUD ────────────────────────────────────────────────────────────
 
-def add_ticker(ticker: str, market: str = "US") -> bool:
+def add_ticker(ticker: str, market: str = "US", name: str = "") -> bool:
     ticker = ticker.upper()
+    market = market.upper()
     conn = _get_conn()
     try:
         conn.execute(
-            "INSERT INTO watchlist (ticker, market, added_at) VALUES (?, ?, ?)",
-            (ticker, market.upper(), datetime.now(KST).isoformat()),
+            "INSERT INTO watchlist (ticker, market, name, added_at) VALUES (?, ?, ?, ?)",
+            (ticker, market, name, datetime.now(KST).isoformat()),
         )
         conn.commit()
-        logger.info("watchlist 추가: %s (%s)", ticker, market)
+        label = f"{name}({ticker})" if name else ticker
+        logger.info("watchlist 추가: %s [%s]", label, market)
         return True
     except sqlite3.IntegrityError:
         logger.debug("이미 있는 종목: %s", ticker)
@@ -140,7 +152,7 @@ def resume_ticker(ticker: str) -> bool:
 def get_active_tickers() -> list[dict]:
     conn = _get_conn()
     rows = conn.execute(
-        "SELECT ticker, market FROM watchlist WHERE is_active = 1 ORDER BY added_at"
+        "SELECT ticker, market, name FROM watchlist WHERE is_active = 1 ORDER BY added_at"
     ).fetchall()
     return [dict(r) for r in rows]
 
@@ -148,7 +160,7 @@ def get_active_tickers() -> list[dict]:
 def get_all_tickers() -> list[dict]:
     conn = _get_conn()
     rows = conn.execute(
-        "SELECT ticker, market, is_active, added_at FROM watchlist ORDER BY added_at"
+        "SELECT ticker, market, name, is_active, added_at FROM watchlist ORDER BY added_at"
     ).fetchall()
     return [dict(r) for r in rows]
 
@@ -161,7 +173,6 @@ def _make_hash(ticker: str, title: str, source: str) -> str:
 
 
 def save_event(event) -> Optional[int]:
-    """StockEvent를 저장. 중복이면 None 반환."""
     h = _make_hash(event.ticker, event.title, event.source)
     conn = _get_conn()
     cur = conn.execute(

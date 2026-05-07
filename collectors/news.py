@@ -8,13 +8,16 @@ import feedparser
 
 from models import StockEvent
 from scorer import score_news_event
-from db import store
 
 logger = logging.getLogger(__name__)
 
-_RSS_TEMPLATE = (
-    "https://news.google.com/rss/search?q={ticker}+stock"
+_RSS_US = (
+    "https://news.google.com/rss/search?q={query}+stock"
     "&hl=en-US&gl=US&ceid=US:en"
+)
+_RSS_KR = (
+    "https://news.google.com/rss/search?q={query}+주식"
+    "&hl=ko-KR&gl=KR&ceid=KR:ko"
 )
 _MAX_ITEMS = 5
 
@@ -28,12 +31,14 @@ def _entry_published(entry) -> str:
     return ""
 
 
-def _event_hash(ticker: str, title: str, source: str) -> str:
-    return hashlib.md5(f"{ticker}:{title}:{source}".encode()).hexdigest()
+def collect_news(ticker: str, market: str = "US", name: str = "") -> list[StockEvent]:
+    # KR 종목은 회사명으로 한국어 검색, 없으면 ticker로 영어 검색
+    if market == "KR":
+        query = name if name else ticker
+        url = _RSS_KR.format(query=query)
+    else:
+        url = _RSS_US.format(query=ticker)
 
-
-def collect_news(ticker: str) -> list[StockEvent]:
-    url = _RSS_TEMPLATE.format(ticker=ticker)
     try:
         feed = feedparser.parse(url)
     except Exception as e:
@@ -74,8 +79,10 @@ def collect_all_news(tickers: list[dict]) -> list[StockEvent]:
     all_events = []
     for row in tickers:
         ticker = row["ticker"]
+        market = row.get("market", "US")
+        name   = row.get("name", "")
         try:
-            news = collect_news(ticker)
+            news = collect_news(ticker, market, name)
             all_events.extend(news)
         except Exception as e:
             logger.warning("뉴스 수집 실패 (%s): %s", ticker, e)
