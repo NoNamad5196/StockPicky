@@ -46,6 +46,8 @@ bot = StockPickyBot()
 
 def _detect_market(ticker: str) -> str:
     """티커 패턴으로 market 자동 감지."""
+    if ticker.upper().endswith("=X"):
+        return "FX"
     if ticker.startswith("^"):
         return "KR"
     if ticker.isdigit() and len(ticker) == 6:
@@ -64,9 +66,9 @@ def _ticker_line(icon: str, t: dict) -> str:
 
 @bot.tree.command(name="add", description="관심 종목을 추가해요!")
 @app_commands.describe(
-    ticker="종목 코드 (예: NVDA, 005930, ^KS11) — 6자리 숫자면 KR 자동 감지",
-    market="시장 US / KR — 생략하면 자동 감지해요",
-    name="회사명 — 생략하면 자동 조회해요 (뉴스 정확도↑ 원하면 한글로 직접 입력)",
+    ticker="종목/환율 코드 (예: NVDA, 005930, ^KS11, USDKRW=X) — 자동 감지",
+    market="시장 US / KR / FX — 생략하면 자동 감지해요",
+    name="이름 — 생략하면 자동 조회 (환율은 달러원·엔원 등 한글로 직접 입력 추천)",
 )
 async def cmd_add(
     interaction: discord.Interaction,
@@ -80,13 +82,13 @@ async def cmd_add(
 
         if market:
             market = market.upper()
-            if market not in ("US", "KR"):
-                await interaction.followup.send("시장은 US 또는 KR만 돼요!", ephemeral=True)
+            if market not in ("US", "KR", "FX"):
+                await interaction.followup.send("시장은 US / KR / FX 중 하나예요!", ephemeral=True)
                 return
         else:
             market = _detect_market(ticker)
 
-        if market == "KR" and not name:
+        if market in ("KR", "FX") and not name:
             from collectors.price import fetch_ticker_name
             loop = asyncio.get_event_loop()
             name = await loop.run_in_executor(None, fetch_ticker_name, ticker, market)

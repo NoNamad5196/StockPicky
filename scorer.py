@@ -63,11 +63,13 @@ def _alert_level(impact: int, urgency: int) -> int:
     return 1
 
 
-def score_price_event(event: StockEvent, pct: float, is_index: bool = False) -> StockEvent:
+def score_price_event(
+    event: StockEvent, pct: float, is_index: bool = False, is_fx: bool = False
+) -> StockEvent:
     abs_pct = abs(pct)
 
-    if is_index:
-        # 지수: 시장 전체를 나타내므로 낮은 % 변동도 의미 있음
+    if is_index or is_fx:
+        # 지수/환율: 작은 % 변동도 의미 있음
         if abs_pct >= 2.0:
             event.market_impact_score = 5
             event.urgency_score = 5
@@ -102,13 +104,25 @@ def score_price_event(event: StockEvent, pct: float, is_index: bool = False) -> 
     event.alert_level = _alert_level(event.market_impact_score, event.urgency_score)
     event.should_alert = event.alert_level >= 4
 
-    label = "지수" if is_index else ""
+    if is_fx:
+        label = "환율"
+        up_reason   = "환율 상승"
+        down_reason = "환율 하락"
+    elif is_index:
+        label = "지수"
+        up_reason   = "지수 상승"
+        down_reason = "지수 하락"
+    else:
+        label = ""
+        up_reason   = "급등"
+        down_reason = "급락"
+
     if pct > 0:
         event.headline_mood = f"쪼아요 쪼아요 {event.ticker} {label}위로 쪼아요! {pct:+.2f}%"
-        event.reason = [f"{event.ticker} {pct:+.2f}% {'지수 상승' if is_index else '급등'} 감지"]
+        event.reason = [f"{event.ticker} {pct:+.2f}% {up_reason} 감지"]
     else:
         event.headline_mood = f"으아앙 {event.ticker} {label}아래로 네르지 마세요! {pct:.2f}%"
-        event.reason = [f"{event.ticker} {pct:+.2f}% {'지수 하락' if is_index else '급락'} 감지"]
+        event.reason = [f"{event.ticker} {pct:+.2f}% {down_reason} 감지"]
 
     event.risk_note = "과거 데이터 기반 알림이에요. 투자는 신중하게 해요!"
     return event

@@ -14,8 +14,14 @@ def _is_index(ticker: str) -> bool:
     return ticker.startswith("^")
 
 
+def _is_fx(ticker: str) -> bool:
+    return ticker.upper().endswith("=X")
+
+
 def _resolve_ticker(ticker: str, market: str) -> str:
-    """yfinance용 티커 변환. KR 지수는 그대로, 일반 KR 종목은 .KS 시도."""
+    """yfinance용 티커 변환."""
+    if market == "FX":
+        return ticker               # USDKRW=X 등 그대로
     if market == "KR":
         if _is_index(ticker):
             return ticker           # ^KS11, ^KQ11 → 그대로
@@ -51,9 +57,10 @@ def collect_price(ticker: str, market: str = "US") -> Optional[StockEvent]:
 
     pct = (last - prev) / prev * 100
     is_idx = _is_index(ticker)
+    is_fx_ticker = _is_fx(ticker)
 
-    # 지수는 낮은 임계값 적용 (0.1% 노이즈 필터)
-    noise_floor = 0.05 if is_idx else 0.1
+    # 지수/환율은 낮은 임계값 적용
+    noise_floor = 0.05 if (is_idx or is_fx_ticker) else 0.1
     if abs(pct) < noise_floor:
         return None
 
@@ -61,10 +68,10 @@ def collect_price(ticker: str, market: str = "US") -> Optional[StockEvent]:
         ticker=ticker,
         event_type="price_spike",
         title=f"{ticker} {pct:+.2f}% 변동",
-        summary=f"{ticker} 현재가 {last:.2f}, 전일 대비 {pct:+.2f}%",
+        summary=f"{ticker} 현재가 {last:.4f}, 전일 대비 {pct:+.2f}%",
         source="yfinance",
     )
-    return score_price_event(event, pct, is_index=is_idx)
+    return score_price_event(event, pct, is_index=is_idx, is_fx=is_fx_ticker)
 
 
 def fetch_ticker_name(ticker: str, market: str) -> str:
