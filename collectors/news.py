@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 import hashlib
+import html
 import logging
+import re
 import time
 from typing import Optional
 
@@ -20,6 +22,13 @@ _RSS_KR = (
     "&hl=ko-KR&gl=KR&ceid=KR:ko"
 )
 _MAX_ITEMS = 5
+
+
+def _strip_html(text: str) -> str:
+    """HTML 태그 제거 + 엔티티 디코딩 + 공백 정리."""
+    text = re.sub(r"<[^>]+>", " ", text)
+    text = html.unescape(text)
+    return " ".join(text.split())
 
 
 def _entry_published(entry) -> str:
@@ -51,11 +60,11 @@ def collect_news(ticker: str, market: str = "US", name: str = "") -> list[StockE
 
     events = []
     for entry in feed.entries[:_MAX_ITEMS]:
-        title = getattr(entry, "title", "")
+        title = _strip_html(getattr(entry, "title", ""))
         source = getattr(entry, "source", {})
         source_name = source.get("title", "") if isinstance(source, dict) else str(source)
         link = getattr(entry, "link", "")
-        summary_raw = getattr(entry, "summary", title)
+        summary_raw = _strip_html(getattr(entry, "summary", title))
 
         if not title:
             continue
