@@ -33,7 +33,7 @@ class StockPickyScheduler:
         @collection_loop.before_loop
         async def before_collection():
             await self.bot.wait_until_ready()
-            logger.info("스톡피키 수집 루프 준비 완료!")
+            logger.info("주식피키 수집 루프 준비 완료!")
 
         self.collection_loop = collection_loop
 
@@ -57,7 +57,7 @@ class StockPickyScheduler:
     def start(self):
         self.collection_loop.start()
         self.briefing_loop.start()
-        logger.info("스톡피키 스케줄러 시작!")
+        logger.info("주식피키 스케줄러 시작!")
 
     def stop(self):
         self.collection_loop.cancel()
@@ -168,5 +168,5 @@ def _build_embed(data: dict) -> discord.Embed:
         description=data.get("description", ""),
         color=data.get("color", 0x636e72),
     )
-    embed.set_footer(text=data.get("footer", "스톡피키"))
+    embed.set_footer(text=data.get("footer", "주식피키"))
     return embed

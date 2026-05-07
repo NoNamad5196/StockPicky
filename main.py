@@ -20,7 +20,7 @@ logger = logging.getLogger("stockpicky")
 # ── 테스트 모드 ───────────────────────────────────────────────────────────────
 
 def run_test_mode():
-    logger.info("=== 스톡피키 테스트 모드 시작! ===")
+    logger.info("=== 주식피키 테스트 모드 시작! ===")
 
     import config
     config.validate(mode="test")
@@ -103,7 +103,7 @@ def run_test_mode():
     assert "description" in briefing
     logger.info("하루 정리글 생성 통과! (%d건)", len(today_events))
 
-    logger.info("=== 모든 테스트 통과! 스톡피키 쪼아요! ===")
+    logger.info("=== 모든 테스트 통과! 주식피키 쪼아요! ===")
     logger.info("")
     logger.info("[NVDA embed]")
     logger.info("  title: %s", nvda_embed["title"])
@@ -123,7 +123,7 @@ async def run_live_mode():
     config.validate(mode="live")
 
     from bot import bot
-    logger.info("스톡피키 봇 시작! Discord에 연결 중...")
+    logger.info("주식피키 봇 시작! Discord에 연결 중...")
     await bot.start(config.DISCORD_BOT_TOKEN)
 
 

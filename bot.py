@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import asyncio
 import logging
 
 import discord
@@ -37,10 +38,19 @@ class StockPickyBot(discord.Client):
     async def on_ready(self):
         emoji_cache.populate(self.emojis)
         loaded = [f":{e.name}:" for e in self.emojis if e.name in ("jjowayo", "uaaang", "ggang", "yolsimhi")]
-        logger.info("스톡피키 봇 시작! (%s) | 커스텀 이모지: %s", self.user, ", ".join(loaded) or "없음")
+        logger.info("주식피키 봇 시작! (%s) | 커스텀 이모지: %s", self.user, ", ".join(loaded) or "없음")
 
 
 bot = StockPickyBot()
+
+
+def _detect_market(ticker: str) -> str:
+    """티커 패턴으로 market 자동 감지."""
+    if ticker.startswith("^"):
+        return "KR"
+    if ticker.isdigit() and len(ticker) == 6:
+        return "KR"
+    return "US"
 
 
 def _ticker_line(icon: str, t: dict) -> str:
@@ -54,36 +64,39 @@ def _ticker_line(icon: str, t: dict) -> str:
 
 @bot.tree.command(name="add", description="관심 종목을 추가해요!")
 @app_commands.describe(
-    ticker="종목 코드 (예: NVDA, 005930)",
-    market="시장 (US 또는 KR, 기본값: US)",
-    name="회사명 — KR 종목은 필수! (예: 삼성전자, 카카오)",
+    ticker="종목 코드 (예: NVDA, 005930, ^KS11) — 6자리 숫자면 KR 자동 감지",
+    market="시장 US / KR — 생략하면 자동 감지해요",
+    name="회사명 — 생략하면 자동 조회해요 (뉴스 정확도↑ 원하면 한글로 직접 입력)",
 )
 async def cmd_add(
     interaction: discord.Interaction,
     ticker: str,
-    market: str = "US",
+    market: str = "",
     name: str = "",
 ):
     await interaction.response.defer(ephemeral=True)
     try:
-        market = market.upper()
-        if market not in ("US", "KR"):
-            await interaction.followup.send("시장은 US 또는 KR만 돼요!", ephemeral=True)
-            return
+        ticker = ticker.upper()
+
+        if market:
+            market = market.upper()
+            if market not in ("US", "KR"):
+                await interaction.followup.send("시장은 US 또는 KR만 돼요!", ephemeral=True)
+                return
+        else:
+            market = _detect_market(ticker)
 
         if market == "KR" and not name:
-            await interaction.followup.send(
-                f"국장 종목은 회사명도 알려줘요!\n예: `/add {ticker} KR 삼성전자`",
-                ephemeral=True,
-            )
-            return
+            from collectors.price import fetch_ticker_name
+            loop = asyncio.get_event_loop()
+            name = await loop.run_in_executor(None, fetch_ticker_name, ticker, market)
 
-        label = f"{name}({ticker.upper()})" if name else ticker.upper()
-        success = store.add_ticker(ticker.upper(), market, name)
+        label = f"{name}({ticker})" if name else ticker
+        success = store.add_ticker(ticker, market, name)
         if success:
-            msg = f"쪼아요! **{label}** 추가됐어요! 이제 스톡피키가 열심히 볼게요!"
+            msg = f"쪼아요! **{label}** 추가됐어요! 이제 주식피키가 열심히 볼게요!"
         else:
-            msg = f"스톡피키 이미 보고 있어요! **{label}** 이미 목록에 있단 말이에요!"
+            msg = f"주식피키 이미 보고 있어요! **{label}** 이미 목록에 있단 말이에요!"
         await interaction.followup.send(msg, ephemeral=True)
     except Exception as e:
         logger.warning("/add 오류: %s", e)
@@ -99,7 +112,7 @@ async def cmd_remove(interaction: discord.Interaction, ticker: str):
     try:
         success = store.remove_ticker(ticker.upper())
         if success:
-            msg = f"으아... **{ticker.upper()}** 뺐어요. 스톡피키 아쉽단 말이에요..."
+            msg = f"으아... **{ticker.upper()}** 뺐어요. 주식피키 아쉽단 말이에요..."
         else:
             msg = f"**{ticker.upper()}** 목록에 없어요!"
         await interaction.followup.send(msg, ephemeral=True)
@@ -153,7 +166,7 @@ async def cmd_list(interaction: discord.Interaction):
         tickers = store.get_all_tickers()
 
         embed = discord.Embed(
-            title="스톡피키 지금 이 종목들 보고 있어요!",
+            title="주식피키 지금 이 종목들 보고 있어요!",
             color=0x6c5ce7,
         )
 
@@ -171,7 +184,7 @@ async def cmd_list(interaction: discord.Interaction):
                 lines = "\n".join(_ticker_line("⏸️", t) for t in paused)
                 embed.add_field(name=f"일시중단 ({len(paused)})", value=lines, inline=False)
 
-        embed.set_footer(text=f"스톡피키 | 총 {len(tickers)}개 종목")
+        embed.set_footer(text=f"주식피키 | 총 {len(tickers)}개 종목")
         await interaction.followup.send(embed=embed, ephemeral=True)
     except Exception as e:
         logger.warning("/list 오류: %s", e)

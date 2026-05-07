@@ -67,6 +67,23 @@ def collect_price(ticker: str, market: str = "US") -> Optional[StockEvent]:
     return score_price_event(event, pct, is_index=is_idx)
 
 
+def fetch_ticker_name(ticker: str, market: str) -> str:
+    """yfinance에서 회사명 조회. 실패 시 빈 문자열 반환."""
+    yt = _resolve_ticker(ticker, market)
+    candidates = [yt]
+    if yt.endswith(".KS"):
+        candidates.append(yt.replace(".KS", ".KQ"))
+    for yt_try in candidates:
+        try:
+            info = yf.Ticker(yt_try).info
+            name = info.get("shortName") or info.get("longName", "")
+            if name:
+                return name.strip()
+        except Exception:
+            continue
+    return ""
+
+
 def collect_all_prices(tickers: list[dict]) -> list[StockEvent]:
     events = []
     for row in tickers:

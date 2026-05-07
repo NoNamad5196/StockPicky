@@ -1,7 +1,7 @@
 # StockPicky Bot — 프로젝트 컨텍스트
 
 ## 개요
-관심 종목의 주가·거래량·뉴스를 감시하고, 중요도/긴급도를 채점한 뒤, 스톡피키(귀여운 유령 마스코트) 말투로 Discord에 실시간 알림과 하루 요약 브리핑을 전달하는 주식 속보봇.
+관심 종목의 주가·거래량·뉴스를 감시하고, 중요도/긴급도를 채점한 뒤, 주식피키(귀여운 유령 마스코트) 말투로 Discord에 실시간 알림과 하루 요약 브리핑을 전달하는 주식 속보봇.
 
 ## 파일 구조
 ```
@@ -9,7 +9,7 @@ stockpicky/
 ├── config.py          — 환경변수 로드 및 검증 (python-dotenv)
 ├── models.py          — StockEvent 데이터클래스
 ├── scorer.py          — 순수 함수: 중요도/긴급도/신뢰도 채점, alert_level 결정
-├── formatter.py       — 규칙 기반 스톡피키 말투 Discord embed dict 생성
+├── formatter.py       — 규칙 기반 주식피키 말투 Discord embed dict 생성
 ├── bot.py             — Discord Bot + /add /remove /pause /list 슬래시 커맨드
 ├── scheduler.py       — discord.ext.tasks 기반 5분 수집루프 + 16:30 KST 브리핑
 ├── main.py            — 진입점: --test(기본) / --live 모드
@@ -19,7 +19,7 @@ stockpicky/
 ├── db/
 │   └── store.py       — SQLite CRUD (WAL 모드, 중복 방지, watchlist 관리)
 └── prompts/
-    └── stockpicky.py  — 스톡피키 시스템 프롬프트 상수
+    └── stockpicky.py  — 주식피키 시스템 프롬프트 상수
 ```
 
 ## 실행 방법

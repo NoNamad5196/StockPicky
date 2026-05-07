@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-규칙 기반 스톡피키 말투 Discord embed dict 생성.
+규칙 기반 주식피키 말투 Discord embed dict 생성.
 
 커스텀 이모지 사용 규칙:
   :jjowayo:   호재/급등/긍정 → 제목, 본문 첫 줄
@@ -63,10 +63,10 @@ def _pct_from_title(title: str) -> str:
 def _opening(event: StockEvent) -> str:
     """본문 첫 줄 감성 문구."""
     if event.sentiment == "positive":
-        return f"{em.jjowayo()} 스톡피키 좋은 소식 가져왔어요!"
+        return f"{em.jjowayo()} 주식피키 좋은 소식 가져왔어요!"
     if event.sentiment == "negative":
-        return f"{em.uaaang()} 스톡피키 걱정되는 소식이에요..."
-    return f"{em.yolsimhi()} 스톡피키 열심히 봤어요!"
+        return f"{em.uaaang()} 주식피키 걱정되는 소식이에요..."
+    return f"{em.yolsimhi()} 주식피키 열심히 봤어요!"
 
 
 def format_alert(event: StockEvent) -> dict:
@@ -77,7 +77,7 @@ def format_alert(event: StockEvent) -> dict:
     description = (
         f"{_opening(event)}\n"
         f"{event.summary}\n"
-        f"스톡피키 바보 아니란 말이에요!\n\n"
+        f"주식피키 바보 아니란 말이에요!\n\n"
         f"중요도: {_stars(event.market_impact_score)} | "
         f"긴급도: {_stars(event.urgency_score)} | "
         f"신뢰도: {_stars(event.credibility_score)}\n\n"
@@ -92,7 +92,7 @@ def format_alert(event: StockEvent) -> dict:
         "color": _color(event.sentiment),
         "title": _headline(event),  # 항상 이모지 데코 버전 사용
         "description": description,
-        "footer": f"스톡피키 | {event.ticker} | {now_str}",
+        "footer": f"주식피키 | {event.ticker} | {now_str}",
     }
 
 
@@ -127,12 +127,12 @@ def format_daily_briefing(events: list[dict]) -> dict:
         sections.append(f"**📋 일반 이벤트**\n{lines}")
 
     if not sections:
-        body = f"{em.yolsimhi()} 오늘은 특별한 소식이 없었어요. 스톡피키 열심히 지켜봤는데 조용하네요!"
+        body = f"{em.yolsimhi()} 오늘은 특별한 소식이 없었어요. 주식피키 열심히 지켜봤는데 조용하네요!"
     else:
         body = "\n\n".join(sections)
 
     description = (
-        f"{em.yolsimhi()} 스톡피키 오늘 하루도 열심히 봤어요!\n\n"
+        f"{em.yolsimhi()} 주식피키 오늘 하루도 열심히 봤어요!\n\n"
         f"{body}\n\n"
         f"⚠️ 쪼아요라고 했지 매수하라는 뜻은 아니에요!"
     )
@@ -140,9 +140,9 @@ def format_daily_briefing(events: list[dict]) -> dict:
     total = len(events)
     return {
         "color": _COLOR_NEUTRAL,
-        "title": f"📊 스톡피키 하루 정리글 — 이벤트 {total}건이에요!",
+        "title": f"📊 주식피키 하루 정리글 — 이벤트 {total}건이에요!",
         "description": description,
-        "footer": f"스톡피키 데일리 브리핑 | {now_str}",
+        "footer": f"주식피키 데일리 브리핑 | {now_str}",
     }
 
 
