@@ -10,9 +10,31 @@
 - **실시간 주가 감시** — 5분마다 watchlist 종목의 등락률을 체크해 급등락 시 즉시 알림
 - **뉴스 수집 및 분석** — Google News RSS로 종목별 최신 뉴스 수집, Gemini LLM으로 감성 분석
 - **중요도 채점** — market_impact / urgency / credibility 각 1~5점, alert_level로 통합 판단
+- **상황별 알림 문구** — 급등/급락/관망 상황과 심각도에 따라 다른 멘트 + 랜덤 자기주장 라인
 - **하루 정리글** — 매일 16:30 KST에 오늘의 주요 이벤트 요약 브리핑 자동 발송
 - **Discord 슬래시 커맨드** — 봇 재시작 없이 watchlist 실시간 관리
 - **미장 + 국장 + 환율 지원** — US / KR(KOSPI `.KS` / KOSDAQ `.KQ` 자동 감지) / FX(달러원·엔원 등 `=X` 티커)
+
+---
+
+## 알림 메시지 구조
+
+alert_level(1~5)과 감정(positive / negative / neutral)에 따라 문구가 달라져요.
+
+| 상황 | 제목 예시 |
+|------|---------|
+| 급등 Level 5 | 쪼아요쪼아요 NVDA 위로 쪼아요! +5.20% 💥 |
+| 급등 Level 3-4 | 쪼아요쪼아요 NVDA 위로 쪼아요! +3.10% |
+| 급락 Level 5 | 으아앙 NVDA 진짜 위험해요! 매도 고려해봐요... 💥 |
+| 급락 Level 3-4 | 으아앙 NVDA 흘러내려요! 조심해봐요 |
+| 호재 뉴스 | 쪼아요 NVDA 호재 소식이에요! |
+| 악재 뉴스 | 으아앙 NVDA 악재예요! 매도 고민해봐요 |
+| 중립 뉴스 | 열심히 NVDA 일단 관망해봐요! 웅성웅성 |
+
+**면책 문구**도 상황에 맞게 바뀌어요:
+- 급등 알림: *쪼아요라고 했지 매수하라는 뜻은 아니에요!*
+- Level 5 급락: *매도 고려하라 했지 반드시 팔라는 뜻은 아니에요!*
+- 관망 소식: *관망하라 했지 무조건 버티라는 뜻은 아니에요!*
 
 ---
 
@@ -38,7 +60,7 @@
 /add JPYKRW=X FX 엔원          # 엔/원 환율
 ```
 
-> 6자리 숫자→KR, `=X` 접미사→FX 자동 감지해요. 환율 뉴스는 "달러원", "엔원" 같은 한글 이름을 직접 입력하는 게 정확도가 높아요.
+> 6자리 숫자→KR, `=X` 접미사→FX 자동 감지해요. 환율·KR 뉴스는 한글 이름을 직접 입력하는 게 정확도가 높아요.
 
 ---
 
@@ -85,14 +107,14 @@ stockpicky/
 ├── config.py          — 환경변수 로드 및 검증
 ├── models.py          — StockEvent 데이터클래스
 ├── scorer.py          — 중요도/긴급도/신뢰도 채점, alert_level 결정
-├── formatter.py       — 주식피키 말투 Discord embed 생성
+├── formatter.py       — 주식피키 말투 Discord embed 생성, 랜덤 문구
 ├── emojis.py          — 커스텀 이모지 캐시 및 폴백
 ├── llm.py             — Gemini 뉴스 분석 (google-genai SDK)
 ├── bot.py             — Discord Bot + 슬래시 커맨드
 ├── scheduler.py       — 5분 수집루프 + 16:30 KST 브리핑
 ├── main.py            — 진입점 (--test / --live)
 ├── collectors/
-│   ├── price.py       — yfinance 주가 수집
+│   ├── price.py       — yfinance 주가/환율 수집, 회사명 자동 조회
 │   └── news.py        — Google News RSS 뉴스 수집
 ├── db/
 │   └── store.py       — SQLite CRUD (WAL 모드)
@@ -128,4 +150,4 @@ sudo journalctl -u stockpicky -f
 
 ---
 
-> ⚠️ 주식피키가 쪼아요라고 했지 매수하라는 뜻은 아니에요!
+> ⚠️ 주식피키가 알려줬다고 무조건 사고팔라는 뜻은 아니에요! 투자 결정은 항상 신중하게 해요.
