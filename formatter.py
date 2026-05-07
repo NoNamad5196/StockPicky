@@ -41,16 +41,17 @@ def _headline(event: StockEvent) -> str:
         return f"{em.jjowayo(2)} {t} 위로 쪼아요! {_pct_from_title(event.title)}%{level_badge}"
 
     if key == ("price_spike", "negative"):
-        level_badge = f" {em.ggang()}" if event.alert_level == 5 else ""
-        return f"{em.uaaang(2)} {t} 아래로 네르지 마세요!{level_badge}"
+        if event.alert_level == 5:
+            return f"{em.uaaang(2)} {t} 진짜 위험해요! 매도 고려해봐요... {em.ggang()}"
+        return f"{em.uaaang(2)} {t} 흘러내려요! 조심해봐요"
 
     if key == ("news", "positive"):
         return f"{em.jjowayo()} {t} 호재 소식이에요!"
 
     if key == ("news", "negative"):
-        return f"{em.uaaang()} {t} 악재 소식이에요!"
+        return f"{em.uaaang()} {t} 악재예요! 매도 고민해봐요"
 
-    return f"{em.yolsimhi()} {t} 소문이에요! 웅성웅성"
+    return f"{em.yolsimhi()} {t} 일단 관망해봐요! 웅성웅성"
 
 
 def _pct_from_title(title: str) -> str:
@@ -66,7 +67,16 @@ def _opening(event: StockEvent) -> str:
         return f"{em.jjowayo()} 주식피키 좋은 소식 가져왔어요!"
     if event.sentiment == "negative":
         return f"{em.uaaang()} 주식피키 걱정되는 소식이에요..."
-    return f"{em.yolsimhi()} 주식피키 열심히 봤어요!"
+    return f"{em.yolsimhi()} 주식피키 지금 예의주시하고 있어요!"
+
+
+def _disclaimer(event: StockEvent) -> str:
+    """감정/레벨에 맞는 면책 문구."""
+    if event.sentiment == "negative" and event.alert_level == 5:
+        return "⚠️ 매도 고려하라 했지 반드시 팔라는 뜻은 아니에요!"
+    if event.sentiment == "neutral":
+        return "⚠️ 관망하라 했지 무조건 버티라는 뜻은 아니에요!"
+    return "⚠️ 쪼아요라고 했지 매수하라는 뜻은 아니에요!"
 
 
 def format_alert(event: StockEvent) -> dict:
@@ -82,7 +92,7 @@ def format_alert(event: StockEvent) -> dict:
         f"긴급도: {_stars(event.urgency_score)} | "
         f"신뢰도: {_stars(event.credibility_score)}\n\n"
         f"왜 봐야 해요?\n{reason_lines}\n\n"
-        f"⚠️ 쪼아요라고 했지 매수하라는 뜻은 아니에요!"
+        f"{_disclaimer(event)}"
     )
 
     if event.url:

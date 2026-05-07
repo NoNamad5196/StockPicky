@@ -121,7 +121,10 @@ def score_price_event(
         event.headline_mood = f"쪼아요 쪼아요 {event.ticker} {label}위로 쪼아요! {pct:+.2f}%"
         event.reason = [f"{event.ticker} {pct:+.2f}% {up_reason} 감지"]
     else:
-        event.headline_mood = f"으아앙 {event.ticker} {label}아래로 네르지 마세요! {pct:.2f}%"
+        if event.alert_level == 5:
+            event.headline_mood = f"으아앙 {event.ticker} {label}진짜 위험해요! 매도 고려해봐요... {pct:.2f}%"
+        else:
+            event.headline_mood = f"으아앙 {event.ticker} {label}흘러내려요! 조심해봐요 {pct:.2f}%"
         event.reason = [f"{event.ticker} {pct:+.2f}% {down_reason} 감지"]
 
     event.risk_note = "과거 데이터 기반 알림이에요. 투자는 신중하게 해요!"
@@ -153,9 +156,9 @@ def score_news_event(event: StockEvent) -> StockEvent:
     if event.sentiment == "positive":
         event.headline_mood = f"쪼아요 쪼아요 {event.ticker} 호재 쪼아요!"
     elif event.sentiment == "negative":
-        event.headline_mood = f"으아앙 {event.ticker} 주식 네르지 마세요!"
+        event.headline_mood = f"으아앙 {event.ticker} 악재예요! 매도 고민해봐요"
     else:
-        event.headline_mood = f"웅성웅성 {event.ticker} 소문이에요!"
+        event.headline_mood = f"웅성웅성 {event.ticker} 일단 관망해봐요!"
 
     event.reason = [event.title]
     event.risk_note = "뉴스 기반 알림이에요. 직접 확인해줘요!"
