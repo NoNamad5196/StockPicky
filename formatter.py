@@ -1,7 +1,16 @@
 # -*- coding: utf-8 -*-
-"""규칙 기반 스톡피키 말투 Discord embed dict 생성 — LLM 없음."""
+"""
+규칙 기반 스톡피키 말투 Discord embed dict 생성.
+
+커스텀 이모지 사용 규칙:
+  :jjowayo:   호재/급등/긍정 → 제목, 본문 첫 줄
+  :uaaang:    악재/급락/부정 → 제목, 본문 첫 줄
+  :ggang:     대형 이벤트(Level 5) 강조
+  :yolsimhi:  모니터링/브리핑 헤더/열심히 문구
+"""
 from datetime import datetime, timezone, timedelta
 from models import StockEvent
+import emojis as em
 
 KST = timezone(timedelta(hours=9))
 
@@ -22,25 +31,51 @@ def _color(sentiment: str) -> int:
     return _COLOR_NEUTRAL
 
 
-def _opening_line(event: StockEvent) -> str:
+def _headline(event: StockEvent) -> str:
+    """이벤트 타입 + 감정에 따른 제목 문구 (커스텀 이모지 포함)."""
+    t = event.ticker
     key = (event.event_type, event.sentiment)
-    dispatch = {
-        ("price_spike", "positive"): f"쪼아요 쪼아요 {event.ticker} 위로 쪼아요!",
-        ("price_spike", "negative"): f"으아앙 {event.ticker} 아래로 네르지 마세요!",
-        ("news", "positive"):        f"쪼아요 쪼아요 {event.ticker} 호재 쪼아요!",
-        ("news", "negative"):        f"으아앙 {event.ticker} 주식 네르지 마세요!",
-    }
-    return dispatch.get(key, f"웅성웅성 {event.ticker} 소문이에요!")
+
+    if key == ("price_spike", "positive"):
+        level_badge = f" {em.ggang()}" if event.alert_level == 5 else ""
+        return f"{em.jjowayo(2)} {t} 위로 쪼아요! {_pct_from_title(event.title)}%{level_badge}"
+
+    if key == ("price_spike", "negative"):
+        level_badge = f" {em.ggang()}" if event.alert_level == 5 else ""
+        return f"{em.uaaang(2)} {t} 아래로 네르지 마세요!{level_badge}"
+
+    if key == ("news", "positive"):
+        return f"{em.jjowayo()} {t} 호재 소식이에요!"
+
+    if key == ("news", "negative"):
+        return f"{em.uaaang()} {t} 악재 소식이에요!"
+
+    return f"{em.yolsimhi()} {t} 소문이에요! 웅성웅성"
+
+
+def _pct_from_title(title: str) -> str:
+    """title에서 등락률 숫자만 추출 (없으면 빈 문자열)."""
+    import re
+    m = re.search(r"([+-]?\d+\.?\d*)\s*%", title)
+    return m.group(1) if m else "?"
+
+
+def _opening(event: StockEvent) -> str:
+    """본문 첫 줄 감성 문구."""
+    if event.sentiment == "positive":
+        return f"{em.jjowayo()} 스톡피키 좋은 소식 가져왔어요!"
+    if event.sentiment == "negative":
+        return f"{em.uaaang()} 스톡피키 걱정되는 소식이에요..."
+    return f"{em.yolsimhi()} 스톡피키 열심히 봤어요!"
 
 
 def format_alert(event: StockEvent) -> dict:
     now_str = datetime.now(KST).strftime("%Y-%m-%d %H:%M KST")
-    opening = _opening_line(event)
 
     reason_lines = "\n".join(f"• {r}" for r in event.reason) if event.reason else "• 수집된 정보 기반이에요."
 
     description = (
-        f"스톡피키... 열심히 봤는데...\n"
+        f"{_opening(event)}\n"
         f"{event.summary}\n"
         f"스톡피키 바보 아니란 말이에요!\n\n"
         f"중요도: {_stars(event.market_impact_score)} | "
@@ -55,7 +90,7 @@ def format_alert(event: StockEvent) -> dict:
 
     return {
         "color": _color(event.sentiment),
-        "title": event.headline_mood or opening,
+        "title": _headline(event),  # 항상 이모지 데코 버전 사용
         "description": description,
         "footer": f"스톡피키 | {event.ticker} | {now_str}",
     }
@@ -72,14 +107,14 @@ def format_daily_briefing(events: list[dict]) -> dict:
 
     if level5:
         lines = "\n".join(
-            f"🚨 **{e['ticker']}** — {e.get('headline_mood') or e.get('title', '')}"
+            f"{em.ggang()} **{e['ticker']}** — {e.get('headline_mood') or e.get('title', '')}"
             for e in level5
         )
         sections.append(f"**⚡ 긴급 이벤트**\n{lines}")
 
     if level4:
         lines = "\n".join(
-            f"🔔 **{e['ticker']}** — {e.get('headline_mood') or e.get('title', '')}"
+            f"{em.uaaang() if _is_negative(e) else em.jjowayo()} **{e['ticker']}** — {e.get('headline_mood') or e.get('title', '')}"
             for e in level4
         )
         sections.append(f"**📢 주요 이벤트**\n{lines}")
@@ -92,12 +127,12 @@ def format_daily_briefing(events: list[dict]) -> dict:
         sections.append(f"**📋 일반 이벤트**\n{lines}")
 
     if not sections:
-        body = "오늘은 특별한 소식이 없었어요. 스톡피키 열심히 지켜봤는데 조용하네요!"
+        body = f"{em.yolsimhi()} 오늘은 특별한 소식이 없었어요. 스톡피키 열심히 지켜봤는데 조용하네요!"
     else:
         body = "\n\n".join(sections)
 
     description = (
-        f"스톡피키 오늘 하루도 열심히 봤어요!\n\n"
+        f"{em.yolsimhi()} 스톡피키 오늘 하루도 열심히 봤어요!\n\n"
         f"{body}\n\n"
         f"⚠️ 쪼아요라고 했지 매수하라는 뜻은 아니에요!"
     )
@@ -109,3 +144,7 @@ def format_daily_briefing(events: list[dict]) -> dict:
         "description": description,
         "footer": f"스톡피키 데일리 브리핑 | {now_str}",
     }
+
+
+def _is_negative(event_dict: dict) -> bool:
+    return event_dict.get("sentiment") == "negative"

@@ -11,6 +11,7 @@ from db import store
 from collectors.price import collect_all_prices
 from collectors.news import collect_all_news
 from formatter import format_alert, format_daily_briefing
+from llm import enrich_all
 
 logger = logging.getLogger(__name__)
 
@@ -77,9 +78,12 @@ class StockPickyScheduler:
             loop.run_in_executor(None, collect_all_prices, tickers),
             loop.run_in_executor(None, collect_all_news, tickers),
         )
+        logger.info("수집 결과: 주가 %d건, 뉴스 %d건", len(price_events), len(news_events))
+
+        # 뉴스 이벤트만 LLM으로 분석 (GEMINI_API_KEY 없으면 자동 스킵)
+        news_events = await enrich_all(news_events)
 
         all_events = price_events + news_events
-        logger.info("수집 결과: 주가 %d건, 뉴스 %d건", len(price_events), len(news_events))
 
         for event in all_events:
             event_id = store.save_event(event)

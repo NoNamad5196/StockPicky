@@ -5,6 +5,7 @@ import discord
 from discord import app_commands
 
 import config
+import emojis as emoji_cache
 from db import store
 from scheduler import StockPickyScheduler
 
@@ -34,7 +35,9 @@ class StockPickyBot(discord.Client):
         self.scheduler.start()
 
     async def on_ready(self):
-        logger.info("스톡피키 봇 시작! (%s)", self.user)
+        emoji_cache.populate(self.emojis)
+        loaded = [f":{e.name}:" for e in self.emojis if e.name in ("jjowayo", "uaaang", "ggang", "yolsimhi")]
+        logger.info("스톡피키 봇 시작! (%s) | 커스텀 이모지: %s", self.user, ", ".join(loaded) or "없음")
 
 
 bot = StockPickyBot()
