@@ -1,0 +1,11 @@
+.env
+.claude/
+stockpicky.db
+stockpicky.db-wal
+stockpicky.db-shm
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.venv/
+venv/

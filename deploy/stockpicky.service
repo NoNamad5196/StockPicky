@@ -1,0 +1,19 @@
+[Unit]
+Description=StockPicky Discord Bot
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/stockpicky
+ExecStart=/home/ubuntu/stockpicky/.venv/bin/python main.py --live
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONIOENCODING=utf-8
+
+[Install]
+WantedBy=multi-user.target
