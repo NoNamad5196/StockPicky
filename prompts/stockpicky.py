@@ -45,11 +45,14 @@ NEWS_ANALYSIS_PROMPT = """\
    - 1: 긴급하지 않음
 
 4. credibility_score: 1~5 정수
-   - 5: reuters.com, bloomberg.com, wsj.com, ft.com, cnbc.com, apnews.com 등 주요 금융 언론
-   - 4: 일반 주요 언론사
-   - 3: 중소 언론사, 기업 공식 발표
-   - 2: 블로그, 개인 미디어
-   - 1: reddit, twitter/X, 출처 불분명
+   - 5: 주요 금융 언론
+       * 글로벌: reuters.com, bloomberg.com, wsj.com, ft.com, cnbc.com, apnews.com
+       * 한국: hankyung.com(한국경제), mk.co.kr(매일경제), yna.co.kr(연합뉴스),
+               edaily.co.kr(이데일리), biz.chosun.com(조선비즈), newsis.com, sedaily.com(서울경제)
+   - 4: 일반 주요 언론사 (중앙일보, 조선일보, 동아일보 등)
+   - 3: 중소 언론사, 기업 공식 발표, 네이버뉴스·다음뉴스 집계
+   - 2: 블로그, 개인 미디어, 출처 불명확
+   - 1: reddit, twitter/X, 커뮤니티 (클리앙, 디시인사이드 등)
 
 5. headline_mood: 스톡피키 말투로 한 줄 요약 (15자 이내, 이모지 없음)
    - 호재: "~쪼아요!", "~쪼아요 쪼아요!" 스타일
