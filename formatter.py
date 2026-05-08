@@ -83,8 +83,8 @@ def _opening(event: StockEvent) -> str:
 
 def _disclaimer(event: StockEvent) -> str:
     """감정/레벨에 맞는 면책 문구."""
-    if event.sentiment == "negative" and event.alert_level == 5:
-        return "⚠️ 매도 고려하라 했지 반드시 팔라는 뜻은 아니에요!"
+    if event.sentiment == "negative":
+        return "⚠️ 으아앙~ 주식 네르지 마세요!! 다만 매도하라는 뜻은 아니에요!!"
     if event.sentiment == "neutral":
         return "⚠️ 관망하라 했지 무조건 버티라는 뜻은 아니에요!"
     return "⚠️ 쪼아요라고 했지 매수하라는 뜻은 아니에요!"
