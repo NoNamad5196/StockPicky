@@ -16,14 +16,9 @@ from llm import enrich_all
 logger = logging.getLogger(__name__)
 
 KST = timezone(timedelta(hours=9))
-_BATCH_FLUSH_CYCLES = 6   # 6 × 5min = 30min
-
-
 class StockPickyScheduler:
     def __init__(self, bot: discord.Client):
         self.bot = bot
-        self._level3_buffer: list = []
-        self._batch_cycle_count: int = 0
 
         # ── 5분 수집 루프 ─────────────────────────────────────────────────────
         @tasks.loop(seconds=config.COLLECT_INTERVAL)
@@ -90,15 +85,9 @@ class StockPickyScheduler:
             if event_id is None:
                 continue
 
+            # Level 4+ 즉시 알림 / Level 1~3 은 DB에 저장만 → 하루 정리글에 포함
             if event.alert_level >= 4:
                 await self._send_alert(event, event_id)
-            elif event.alert_level == 3:
-                self._level3_buffer.append((event, event_id))
-
-        self._batch_cycle_count += 1
-        if self._batch_cycle_count >= _BATCH_FLUSH_CYCLES and self._level3_buffer:
-            await self._flush_batch()
-            self._batch_cycle_count = 0
 
     async def _send_alert(self, event, event_id: int):
         channel = self.bot.get_channel(config.DISCORD_ALERT_CHANNEL_ID)
@@ -113,27 +102,6 @@ class StockPickyScheduler:
             logger.info("알림 발송: %s (Level %d)", event.ticker, event.alert_level)
         except Exception as e:
             logger.warning("알림 발송 실패: %s", e)
-
-    async def _flush_batch(self):
-        if not self._level3_buffer:
-            return
-        channel = self.bot.get_channel(config.DISCORD_ALERT_CHANNEL_ID)
-        if channel is None:
-            logger.warning("알림 채널을 찾을 수 없어요: %d", config.DISCORD_ALERT_CHANNEL_ID)
-            return
-
-        logger.info("Level 3 묶음 발송 — %d건", len(self._level3_buffer))
-        for event, event_id in self._level3_buffer:
-            try:
-                embed_data = format_alert(event)
-                embed = _build_embed(embed_data)
-                await channel.send(embed=embed)
-                store.mark_sent(event_id, embed_data["title"][:200])
-                await asyncio.sleep(0.5)
-            except Exception as e:
-                logger.warning("묶음 발송 실패: %s", e)
-
-        self._level3_buffer.clear()
 
     # ── 하루 정리글 ───────────────────────────────────────────────────────────
 

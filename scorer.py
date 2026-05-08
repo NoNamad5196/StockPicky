@@ -117,15 +117,27 @@ def score_price_event(
         up_reason   = "급등"
         down_reason = "급락"
 
+    # 이유 3줄 생성
+    direction = up_reason if pct > 0 else down_reason
+    if is_fx:
+        context_note = "환율 변동은 수출입·물가에 영향을 줄 수 있어요."
+    elif is_index:
+        context_note = "지수 변동은 시장 전체 흐름을 나타내요."
+    else:
+        context_note = "관련 뉴스를 함께 확인해서 원인을 파악해봐요!"
+    event.reason = [
+        f"전일 종가 대비 {pct:+.2f}% {direction} 감지",
+        f"alert_level {event.alert_level}/5 — 중요도 {event.market_impact_score} / 긴급도 {event.urgency_score}",
+        context_note,
+    ]
+
     if pct > 0:
         event.headline_mood = f"쪼아요 쪼아요 {event.ticker} {label}위로 쪼아요! {pct:+.2f}%"
-        event.reason = [f"{event.ticker} {pct:+.2f}% {up_reason} 감지"]
     else:
         if event.alert_level == 5:
             event.headline_mood = f"으아앙 {event.ticker} {label}진짜 위험해요! 매도 고려해봐요... {pct:.2f}%"
         else:
             event.headline_mood = f"으아앙 {event.ticker} {label}흘러내려요! 조심해봐요 {pct:.2f}%"
-        event.reason = [f"{event.ticker} {pct:+.2f}% {down_reason} 감지"]
 
     event.risk_note = "과거 데이터 기반 알림이에요. 투자는 신중하게 해요!"
     return event
@@ -160,7 +172,28 @@ def score_news_event(event: StockEvent) -> StockEvent:
     else:
         event.headline_mood = f"웅성웅성 {event.ticker} 일단 관망해봐요!"
 
-    event.reason = [event.title]
+    # 이유 3줄 생성 (규칙 기반 폴백용 — LLM 분석 시 덮어써짐)
+    combined = event.title + " " + event.summary
+    neg_hits = [kw for kw in _NEWS_NEGATIVE_KEYWORDS if kw in combined]
+    pos_hits = [kw for kw in _NEWS_POSITIVE_KEYWORDS if kw in combined]
+    if neg_hits:
+        kw_line = f"악재 키워드 감지: {', '.join(neg_hits[:3])}"
+    elif pos_hits:
+        kw_line = f"호재 키워드 감지: {', '.join(pos_hits[:3])}"
+    else:
+        kw_line = "감정 키워드 미감지 — 중립 뉴스로 분류됐어요"
+
+    _CRED_LABEL = {5: "주요 금융 언론", 4: "주요 언론", 3: "일반 언론", 2: "소형 미디어", 1: "커뮤니티/SNS"}
+    cred_line = f"출처: {event.source} — {_CRED_LABEL.get(event.credibility_score, '미분류')} (신뢰도 {event.credibility_score}/5)"
+
+    if event.sentiment == "negative":
+        action_line = "악재 원인을 원문에서 직접 확인하고 대응 여부를 판단해봐요!"
+    elif event.sentiment == "positive":
+        action_line = "호재가 지속될지 추가 뉴스도 함께 확인해봐요!"
+    else:
+        action_line = "시장 반응을 지켜보며 추이를 확인해봐요!"
+
+    event.reason = [kw_line, cred_line, action_line]
     event.risk_note = "뉴스 기반 알림이에요. 직접 확인해줘요!"
     return event
 
