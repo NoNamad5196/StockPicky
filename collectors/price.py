@@ -25,7 +25,7 @@ def _is_kr_market_open() -> bool:
     if now.weekday() >= 5:              # 토/일 휴장
         return False
     t = now.time()
-    return dt_time(9, 0) <= t <= dt_time(15, 30)
+    return dt_time(9, 0) <= t <= dt_time(19, 0)
 
 
 def _is_fx(ticker: str) -> bool:
