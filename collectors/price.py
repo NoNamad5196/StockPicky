@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 import logging
+from datetime import datetime, timezone, timedelta
+from datetime import time as dt_time
 from typing import Optional
 
 import yfinance as yf
@@ -10,8 +12,20 @@ from scorer import score_price_event
 logger = logging.getLogger(__name__)
 
 
+_KST = timezone(timedelta(hours=9))
+
+
 def _is_index(ticker: str) -> bool:
     return ticker.startswith("^")
+
+
+def _is_kr_market_open() -> bool:
+    """KRX 정규 장 시간(월~금 09:00~15:30 KST) 여부 확인."""
+    now = datetime.now(_KST)
+    if now.weekday() >= 5:              # 토/일 휴장
+        return False
+    t = now.time()
+    return dt_time(9, 0) <= t <= dt_time(15, 30)
 
 
 def _is_fx(ticker: str) -> bool:
@@ -40,6 +54,11 @@ def _fetch_price(yt: str) -> tuple[Optional[float], Optional[float]]:
 
 
 def collect_price(ticker: str, market: str = "US") -> Optional[StockEvent]:
+    # KR 개별 종목은 장 시간(09:00~15:30 KST) 외에는 데이터 의미 없음 → 스킵
+    if market == "KR" and not _is_index(ticker) and not _is_kr_market_open():
+        logger.debug("KR 장 마감 — 수집 스킵: %s", ticker)
+        return None
+
     yt = _resolve_ticker(ticker, market)
     last, prev = _fetch_price(yt)
 
@@ -58,6 +77,7 @@ def collect_price(ticker: str, market: str = "US") -> Optional[StockEvent]:
     pct = (last - prev) / prev * 100
     is_idx = _is_index(ticker)
     is_fx_ticker = _is_fx(ticker)
+    is_kr_stock = (market == "KR") and not is_idx and not is_fx_ticker
 
     # 지수/환율은 낮은 임계값 적용
     noise_floor = 0.05 if (is_idx or is_fx_ticker) else 0.1
@@ -71,7 +91,7 @@ def collect_price(ticker: str, market: str = "US") -> Optional[StockEvent]:
         summary=f"{ticker} 현재가 {last:.4f}, 전일 대비 {pct:+.2f}%",
         source="yfinance",
     )
-    return score_price_event(event, pct, is_index=is_idx, is_fx=is_fx_ticker)
+    return score_price_event(event, pct, is_index=is_idx, is_fx=is_fx_ticker, is_kr=is_kr_stock)
 
 
 def fetch_ticker_name(ticker: str, market: str) -> str:

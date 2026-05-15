@@ -64,7 +64,8 @@ def _alert_level(impact: int, urgency: int) -> int:
 
 
 def score_price_event(
-    event: StockEvent, pct: float, is_index: bool = False, is_fx: bool = False
+    event: StockEvent, pct: float,
+    is_index: bool = False, is_fx: bool = False, is_kr: bool = False
 ) -> StockEvent:
     abs_pct = abs(pct)
 
@@ -82,8 +83,27 @@ def score_price_event(
         else:
             event.market_impact_score = 2
             event.urgency_score = 2
+    elif is_kr:
+        # KR 개별 종목: 대형주 특성상 임계값 낮춤 (±2% 이상이면 알림)
+        if abs_pct < 0.1:
+            event.alert_level = 1
+            event.should_alert = False
+            return event
+
+        if abs_pct >= 5.0:
+            event.market_impact_score = 5
+            event.urgency_score = 5
+        elif abs_pct >= 3.0:
+            event.market_impact_score = 4
+            event.urgency_score = 4
+        elif abs_pct >= 2.0:
+            event.market_impact_score = 3
+            event.urgency_score = 3
+        else:
+            event.market_impact_score = 2
+            event.urgency_score = 2
     else:
-        # 개별 종목
+        # US 개별 종목
         if abs_pct < 0.1:
             event.alert_level = 1
             event.should_alert = False
