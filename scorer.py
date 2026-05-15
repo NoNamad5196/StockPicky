@@ -137,19 +137,16 @@ def score_price_event(
         up_reason   = "급등"
         down_reason = "급락"
 
-    # 이유 3줄 생성
+    # 이유 생성 — alert_level 중복 줄·뻔한 filler 제거
+    # FX·지수: 실제 의미 있는 컨텍스트 한 줄만 추가
+    # 개별 종목: % 변동 한 줄만 (중요도·긴급도는 별 위에 이미 표시)
     direction = up_reason if pct > 0 else down_reason
+    reason_lines = [f"전일 종가 대비 {pct:+.2f}% {direction} 감지"]
     if is_fx:
-        context_note = "환율 변동은 수출입·물가에 영향을 줄 수 있어요."
+        reason_lines.append("환율 변동은 수출입·물가에 영향을 줄 수 있어요.")
     elif is_index:
-        context_note = "지수 변동은 시장 전체 흐름을 나타내요."
-    else:
-        context_note = "관련 뉴스를 함께 확인해서 원인을 파악해봐요!"
-    event.reason = [
-        f"전일 종가 대비 {pct:+.2f}% {direction} 감지",
-        f"alert_level {event.alert_level}/5 — 중요도 {event.market_impact_score} / 긴급도 {event.urgency_score}",
-        context_note,
-    ]
+        reason_lines.append("지수 변동은 시장 전체 흐름을 나타내요.")
+    event.reason = reason_lines
 
     if pct > 0:
         event.headline_mood = f"쪼아요 쪼아요 {event.ticker} {label}위로 쪼아요! {pct:+.2f}%"

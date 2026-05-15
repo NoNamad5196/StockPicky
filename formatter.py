@@ -94,7 +94,12 @@ def _disclaimer(event: StockEvent) -> str:
 def format_alert(event: StockEvent) -> dict:
     now_str = datetime.now(KST).strftime("%Y-%m-%d %H:%M KST")
 
-    reason_lines = "\n".join(f"• {r}" for r in event.reason) if event.reason else "• 수집된 정보 기반이에요."
+    # reason이 있을 때만 "왜 봐야 해요?" 섹션 표시
+    if event.reason:
+        reason_lines = "\n".join(f"• {r}" for r in event.reason)
+        reason_section = f"왜 봐야 해요?\n{reason_lines}\n\n"
+    else:
+        reason_section = ""
 
     description = (
         f"{_opening(event)}\n"
@@ -103,7 +108,7 @@ def format_alert(event: StockEvent) -> dict:
         f"중요도: {_stars(event.market_impact_score)} | "
         f"긴급도: {_stars(event.urgency_score)} | "
         f"신뢰도: {_stars(event.credibility_score)}\n\n"
-        f"왜 봐야 해요?\n{reason_lines}\n\n"
+        f"{reason_section}"
         f"{_disclaimer(event)}"
     )
 
