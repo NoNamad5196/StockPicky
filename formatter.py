@@ -48,7 +48,8 @@ def _headline(event: StockEvent) -> str:
     key = (event.event_type, event.sentiment)
 
     if key == ("price_spike", "positive"):
-        level_badge = f" {em.ggang()}" if event.alert_level == 5 else ""
+        # 긍정 → 쪼아요만. Level5여도 ggang(대가리깨진 스피키) 붙이지 않음
+        level_badge = " 🚀" if event.alert_level == 5 else ""
         return f"{em.jjowayo(2)} {t} 위로 쪼아요! {_pct_from_title(event.title)}%{level_badge}"
 
     if key == ("price_spike", "negative"):
@@ -127,8 +128,14 @@ def format_daily_briefing(events: list[dict]) -> dict:
     sections = []
 
     if level5:
+        def _level5_prefix(e: dict) -> str:
+            # 긍정이면 jjowayo / 부정이면 uaaang + ggang
+            if _is_negative(e):
+                return f"{em.uaaang()} {em.ggang()}"
+            return f"{em.jjowayo(2)}"
+
         lines = "\n".join(
-            f"{em.ggang()} **{e['ticker']}** — {e.get('headline_mood') or e.get('title', '')}"
+            f"{_level5_prefix(e)} **{e['ticker']}** — {e.get('headline_mood') or e.get('title', '')}"
             for e in level5
         )
         sections.append(f"**⚡ 긴급 이벤트**\n{lines}")
