@@ -14,6 +14,7 @@ DISCORD_GUILD_ID: int = int(os.getenv("DISCORD_GUILD_ID", "0"))
 
 PRICE_THRESHOLD: float = float(os.getenv("PRICE_THRESHOLD", "3.0"))
 COLLECT_INTERVAL: int = int(os.getenv("COLLECT_INTERVAL", "300"))
+ALERT_COOLDOWN_MINUTES: int = int(os.getenv("ALERT_COOLDOWN_MINUTES", "60"))
 BRIEFING_HOUR: int = int(os.getenv("BRIEFING_HOUR", "16"))
 BRIEFING_MINUTE: int = int(os.getenv("BRIEFING_MINUTE", "30"))
 

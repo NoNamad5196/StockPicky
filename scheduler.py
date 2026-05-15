@@ -19,6 +19,7 @@ KST = timezone(timedelta(hours=9))
 class StockPickyScheduler:
     def __init__(self, bot: discord.Client):
         self.bot = bot
+        self._cooldown: dict[str, datetime] = {}  # ticker → 마지막 알림 시각
 
         # ── 5분 수집 루프 ─────────────────────────────────────────────────────
         @tasks.loop(seconds=config.COLLECT_INTERVAL)
@@ -87,7 +88,19 @@ class StockPickyScheduler:
 
             # Level 4+ 즉시 알림 / Level 1~3 은 DB에 저장만 → 하루 정리글에 포함
             if event.alert_level >= 4:
-                await self._send_alert(event, event_id)
+                if self._is_cooled_down(event.ticker):
+                    logger.debug("쿨다운 중 — 알림 스킵: %s", event.ticker)
+                else:
+                    await self._send_alert(event, event_id)
+                    self._cooldown[event.ticker] = datetime.now(KST)
+
+    def _is_cooled_down(self, ticker: str) -> bool:
+        """마지막 알림으로부터 ALERT_COOLDOWN_MINUTES 이내면 True."""
+        last = self._cooldown.get(ticker)
+        if last is None:
+            return False
+        elapsed = (datetime.now(KST) - last).total_seconds() / 60
+        return elapsed < config.ALERT_COOLDOWN_MINUTES
 
     async def _send_alert(self, event, event_id: int):
         channel = self.bot.get_channel(config.DISCORD_ALERT_CHANNEL_ID)
