@@ -4,6 +4,11 @@ Gemini 기반 뉴스 분석 모듈 (google-genai SDK).
 
 - analyze_news(): 뉴스 텍스트 → 구조화된 분석 결과 (JSON)
 - enrich_with_llm(): StockEvent에 LLM 결과 적용 (실패 시 기존 규칙 기반 유지)
+
+Rate limit 대응:
+  - 요청을 순차 처리 (동시 1개)하여 burst 방지
+  - 요청 사이 _REQ_INTERVAL 초 강제 대기 (15 RPM = 4초/req)
+  - 429 수신 시 exponential backoff 재시도 (최대 2회)
 """
 import asyncio
 import json
@@ -20,8 +25,10 @@ from prompts.stockpicky import NEWS_ANALYSIS_PROMPT
 logger = logging.getLogger(__name__)
 
 _client: Optional[genai.Client] = None
-_semaphore: Optional[asyncio.Semaphore] = None
-_MAX_CONCURRENT = 5
+
+# 15 RPM(무료 기본 한도) 기준: 요청 1개당 최소 4초 간격
+_REQ_INTERVAL  = 4.0        # 요청 간 최소 대기 (초)
+_RETRY_DELAYS  = [10, 30]   # 429 발생 시 재시도 전 대기 시간 (초)
 
 
 def _get_client() -> Optional[genai.Client]:
@@ -34,11 +41,10 @@ def _get_client() -> Optional[genai.Client]:
     return _client
 
 
-def _get_semaphore() -> asyncio.Semaphore:
-    global _semaphore
-    if _semaphore is None:
-        _semaphore = asyncio.Semaphore(_MAX_CONCURRENT)
-    return _semaphore
+def _is_rate_limit_error(e: Exception) -> bool:
+    """429 / quota 초과 에러 여부 판별."""
+    msg = str(e).lower()
+    return "429" in msg or "quota" in msg or "resource_exhausted" in msg or "rate_limit" in msg
 
 
 async def analyze_news(
@@ -58,7 +64,7 @@ async def analyze_news(
         source=source,
     )
 
-    async with _get_semaphore():
+    for attempt in range(len(_RETRY_DELAYS) + 1):
         try:
             response = await client.aio.models.generate_content(
                 model=config.GEMINI_MODEL,
@@ -84,9 +90,23 @@ async def analyze_news(
         except json.JSONDecodeError as e:
             logger.warning("LLM JSON 파싱 실패 (%s): %s", ticker, e)
             return None
+
         except Exception as e:
-            logger.warning("LLM 호출 실패 (%s): %s", ticker, e)
+            if _is_rate_limit_error(e):
+                if attempt < len(_RETRY_DELAYS):
+                    wait = _RETRY_DELAYS[attempt]
+                    logger.warning(
+                        "429 Rate limit (%s) — %d초 대기 후 재시도 (%d/%d)",
+                        ticker, wait, attempt + 1, len(_RETRY_DELAYS),
+                    )
+                    await asyncio.sleep(wait)
+                    continue
+                logger.warning("429 재시도 횟수 초과 — 규칙 기반으로 폴백: %s", ticker)
+            else:
+                logger.warning("LLM 호출 실패 (%s): %s", ticker, e)
             return None
+
+    return None
 
 
 def _recalc_alert_level(impact: int, urgency: int) -> tuple[int, bool]:
@@ -126,7 +146,19 @@ async def enrich_with_llm(event: StockEvent) -> StockEvent:
 
 
 async def enrich_all(events: list[StockEvent]) -> list[StockEvent]:
+    """뉴스 이벤트를 순차 처리 — burst 방지용 요청 간격 유지."""
     if not config.GEMINI_API_KEY:
         return events
-    results = await asyncio.gather(*[enrich_with_llm(e) for e in events])
-    return list(results)
+
+    results: list[StockEvent] = []
+    news_events = [e for e in events if e.event_type == "news"]
+    other_events = [e for e in events if e.event_type != "news"]
+
+    for i, event in enumerate(news_events):
+        result = await enrich_with_llm(event)
+        results.append(result)
+        # 마지막 요청 제외하고 최소 간격 대기 (15 RPM = 4초/req)
+        if i < len(news_events) - 1:
+            await asyncio.sleep(_REQ_INTERVAL)
+
+    return other_events + results
