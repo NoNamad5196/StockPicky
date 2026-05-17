@@ -21,7 +21,7 @@ BRIEFING_MINUTE: int = int(os.getenv("BRIEFING_MINUTE", "30"))
 DB_PATH: str = os.getenv("DB_PATH", "stockpicky.db")
 
 GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
-GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite-preview")
+GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-preview-05-20")
 
 
 def validate(mode: str = "live") -> None:
